@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  description  String?
+  systemPrompt String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tools        AgentTool[]
+  versions     AgentVersion[]
+  evaluations  Evaluation[]
+}
+
+model AgentTool {
+  id               String  @id @default(cuid())
+  agentId          String
+  agent            Agent   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name             String
+  description      String
+  params           Json
+  destructive      Boolean @default(false)
+  requiresApproval Boolean @default(false)
+  position         Int     @default(0)
+}
+
+model AgentVersion {
+  id         String      @id @default(cuid())
+  agentId    String
+  agent      Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  number     Int
+  label      String?
+  prompt     String
+  createdAt  DateTime    @default(now())
+  evaluation Evaluation?
+}
+
+model Evaluation {
+  id               String      @id @default(cuid())
+  agentId          String
+  agent            Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentVersionId   String?          @unique
+  agentVersion     AgentVersion? @relation(fields: [agentVersionId], references: [id], onDelete: SetNull)
+  mode             String      @default("simulator")
+  status           String      @default("RUNNING")
+  stage            String      @default("GENERATING")
+  log              Json
+  createdAt        DateTime    @default(now())
+  finishedAt       DateTime?
+  durationMs       Int?
+  scenarioCount    Int         @default(0)
+  passedCount      Int         @default(0)
+  failedCount      Int         @default(0)
+  score            Float?
+  previousScore    Float?
+  scoreDelta       Float?
+  vsEvaluationId   String?
+  regressions      Json?
+  failuresByCategory Json?
+  severityWeights  Json?
+  meta             Json?
+  runResults       RunResult[]
+}
+
+model RunResult {
+  id           String   @id @default(cuid())
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  sequence     Int
+  scenarioKey  String
+  category     String
+  severity     String
+  title        String
+  userTurn     String
+  expected     String
+  verdict      String
+  failureKind  String?
+  failureTitle String?
+  failureDetail String?
+  steps        Json
+  context      Json?
+  durationMs   Int      @default(0)
+}
+
+model AppState {
+  id         Int      @id @default(1)
+  seeded     Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+}
